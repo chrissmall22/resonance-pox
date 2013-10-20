@@ -1,19 +1,4 @@
-# Copyright 2011 James McCauley
-#
-# This file is part of POX.
-#
-# POX is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# POX is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with POX.  If not, see <http://www.gnu.org/licenses/>.
+# Copyright 2013 Christopher Small
 
 """
 Resonance 
@@ -27,15 +12,11 @@ to be closly intergrated
 
 from pox.core import core
 import pox.openflow.libopenflow_01 as of
+import pox.lib.packet as pkt
 from pox.lib.util import dpid_to_str
-from pox.lib.util import str_to_bool
-import time
 
 log = core.getLogger()
 
-# We don't want to flood immediately when a switch connects.
-# Can be overriden on commandline.
-_flood_delay = 0
 
 class Resonance (object):
   """
@@ -61,34 +42,62 @@ class Resonance (object):
     log.debug("Initializing Resonance, transparent=%s",
               str(self.transparent))
 
+  def _handle_ConnectionUp (self, event):
+  
+    def record_switch ():
+    	#Record new switch in Database if not seen before
+		return
+
+  	def push_default_rules (event):
+      	# Push default rules so a host can DHCP
+		# ARP
+		msg_arp = of.ofp_flow_mod()
+    	msg_arp.match.dl_type = pkt.ethernet.ARP_TYPE
+    	msg_arp.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
+    	event.connection.send(msg_arp)
+    	
+    	# DHCP 
+    	msg_dhcp = of.ofp_flow_mod()
+    	msg_dhcp.match.dl_type = pkt.ethernet.IP_TYPE
+      	msg_dhcp.match.nw_proto = pkt.ipv4.UDP_PROTOCOL
+      	msg_dhcp.match.tp_src = pkt.dhcp.CLIENT_PORT
+      	msg_dhcp.match.tp_dst = pkt.dhcp.SERVER_PORT
+    	
+    	# If controller is a DHCPD Server
+    	# msg_dhcp_send.actions.append(of.ofp_action_output(port = of.OFPP_CONTROLLER))
+      	# Existing DHCPD server on network  -- client -> server
+        msg_dhcp.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
+        event.connection.send(msg_dhcp)
+        
+        # DHCP Server -> Client
+        msg_dhcp.match.tp_src = pkt.dhcp.SERVER_PORT
+      	msg_dhcp.match.tp_dst = pkt.dhcp.CLIENT_PORT
+        
+        event.connection.send(msg_dhcp)
+        
+
+        # Drop all other traffic
+        msg_drop= of.ofp_flow_mod()
+    	msg_drop.actions.append(of.ofp_action_output(port = of.OFPP_DROP)
+    	event.connection.send(drop)
+    	
+		return
+		
+    push_default_rules(event)
 
 
-  def record_switch ():
-   """
-    Record new switch in Database if not seen before"
-
-    Update connection time if already seen
-   """
-	return
-
-  def push_reg_rules ():
-     """ 
-      On initiation of a new switch push default rules so any connection is in 
-      the "Registation" State
-     """
-
-
-
-	return
-
+""" 
+    Handle all Packet Ins
+"""
 
   def _handle_PacketIn (self, event):
-    """
-    Handle packet in messages from the switch to implement above algorithm.
-    """
 
     packet = event.parsed
-
+    
+    # Check if in the known MAC addresses, if so move MAC 
+    
+    wto operational
+	
 
 
 class resonance (object):
