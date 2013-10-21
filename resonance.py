@@ -1,7 +1,7 @@
 # Copyright 2013 Christopher Small
 
 """
-Resonance 
+Resonance-PoX
 
 A rewrite of the Resonance Network Access Control Application in PoX
 
@@ -14,41 +14,67 @@ from pox.core import core
 import pox.openflow.libopenflow_01 as of
 import pox.lib.packet as pkt
 from pox.lib.util import dpid_to_str
+#import mysql.connector
 
 log = core.getLogger()
 
 
-class Resonance (object):
+class resonance (object):
   """
-  Resonance Network Access Control 
-
-  Initalise switch into Registration State for all connections
-
-  May want to add state store to more quickly recover from a disconnection of a switch
-  without check of allowed MAC DB
+  Waits for OpenFlow switches to connect.
   """
-  def __init__ (self, connection, transparent):
-    # Switch we'll be adding L2 learning switch capabilities to
-    self.connection = connection
+  # STATES
+  UNKNOWN = 0
+  REG = 1
+  AUTH = 2
+  QUAR = 3
+  OPER = 4
+ 
+  
+  
+  def __init__ (self, transparent):
+    core.openflow.addListeners(self)
     self.transparent = transparent
-
-    # Our Mac to user table
-    self.macToUser = {}
-
-    # We want to hear PacketIn messages, so we listen
-    # to the connection
-    connection.addListeners(self)
-
-    log.debug("Initializing Resonance, transparent=%s",
-              str(self.transparent))
+    
+    # Cache of authorized MAC DB -- includes userid and state associated with MAC
+    self.macDB = {}
+    
 
   def _handle_ConnectionUp (self, event):
+    log.debug("Connection %s" % (event.connection,))
+    push_default_rules(event)
   
-    def record_switch ():
-    	#Record new switch in Database if not seen before
-		return
-
-  	def push_default_rules (event):
+  
+  def _handle_PacketIn (self, event):
+    packet = event.parsed
+    
+    log.debug("PacketIn Connection %s" % (event.connection,))
+    
+    # Check if in the known MAC addresses, if so move host to last known state
+    if state = self.macDB[packet.src]
+    else state = REG
+    
+    log.debug("Packet In, mac=%s DB state=%s",
+              packet.src, state)
+    
+    
+    # Check what state the host was in
+    
+    # UNKNOWN state,push rules to move to registration state
+	if state == REG
+		# Push Web Redirect	
+		portal_ip = get_portal_ip()
+		msg_web = of.ofp_flow_mod()
+        msg_web.match.dl_type = pkt.ethernet.IP_TYPE
+        msg_web.match.nw_proto = pkt.ipv4.TCP_PROTOCOL
+        msg_dhcp.actions.append(of.ofp_action_output(nw_addr.set_dst(portal_ip)
+		event.connection.send(msg_web)	
+				
+	if state == OPER
+	     # Push in normal rule	
+	     #event.connection.send
+    
+  def push_default_rules (event):
       	# Push default rules so a host can DHCP
 		# ARP
 		msg_arp = of.ofp_flow_mod()
@@ -63,8 +89,6 @@ class Resonance (object):
       	msg_dhcp.match.tp_src = pkt.dhcp.CLIENT_PORT
       	msg_dhcp.match.tp_dst = pkt.dhcp.SERVER_PORT
     	
-    	# If controller is a DHCPD Server
-    	# msg_dhcp_send.actions.append(of.ofp_action_output(port = of.OFPP_CONTROLLER))
       	# Existing DHCPD server on network  -- client -> server
         msg_dhcp.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
         event.connection.send(msg_dhcp)
@@ -75,42 +99,47 @@ class Resonance (object):
         
         event.connection.send(msg_dhcp)
         
+        # DNS - should this be only done at first packet in so doesn't need to be flood?
+	    msg_dns = of.ofp_flow_mod()
+    	msg_dns.match.dl_type = pkt.ethernet.IP_TYPE
+      	msg_dns.match.nw_proto = pkt.ipv4.UDP_PROTOCOL
+      	msg_dns.match.tp_src = pkt.dns.SERVER_PORT
+      	msg_dhcp.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
+      	
+      	event.connection.send(msg_dns)
+      	msg_dns.match.tp_dst = pkt.dns.SERVER_PORT
+      	event.connection.send(msg_dns)
+	     	
+        # Put in a rule to bypass all all V6 Traffic 
+        msg_v6 = of.ofp_flow_mod()
+        msg_v6.match.dl_type = pkt.ethernet.IPV6_TYPE
+        msg_v6.actions.append(of.ofp_action_output(port = of.OFPP_NORMAL))
+        event.connection.send(msg_v6)
+        
 
         # Drop all other traffic
         msg_drop= of.ofp_flow_mod()
     	msg_drop.actions.append(of.ofp_action_output(port = of.OFPP_DROP)
     	event.connection.send(drop)
     	
-		return
+		return 
 		
-    push_default_rules(event)
-
-
-""" 
-    Handle all Packet Ins
+		
+	def get_web_portal ():	
+	  # Get Web Portal IP
+      webportal_ip = '128.208.125.59'	 
+      return webportal_ip
+      
+        
+      
+    
+    
+"""    
+    def authentication
+  	  # Set rules for authentication and then wait for auth
+  	  auth_channel = core.MessengerNexus.get_channel("auth")  
+      return 
 """
-
-  def _handle_PacketIn (self, event):
-
-    packet = event.parsed
-    
-    # Check if in the known MAC addresses, if so move MAC 
-    
-    wto operational
-	
-
-
-class resonance (object):
-  """
-  Waits for OpenFlow switches to connect.
-  """
-  def __init__ (self, transparent):
-    core.openflow.addListeners(self)
-    self.transparent = transparent
-
-  def _handle_ConnectionUp (self, event):
-    log.debug("Connection %s" % (event.connection,))
-    Resonance(event.connection, self.transparent)
 
 
 def launch (transparent=False, hold_down=_flood_delay):
